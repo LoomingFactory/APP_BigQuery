@@ -1,0 +1,4 @@
+pandas==1.4.3
+protobuf==4.21.4
+streamlit==1.11.0
+streamlit_option_menu==0.3.2
