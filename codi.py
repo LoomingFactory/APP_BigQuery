@@ -32,10 +32,6 @@ def ax_nova_cerca():
 
 
 # li dic que comenci amb la pagina de login
-if 'descarregables' not in st.session_state:
-	st.session_state['descarregables'] = ["","",""]
-
-# li dic que comenci amb la pagina de login
 if 'pagina' not in st.session_state:
 	st.session_state['pagina'] = 'login'
 
@@ -96,8 +92,7 @@ elif st.session_state['pagina'] == 'dins_app':
                 lower_than=  dara #1643197403000 #
                 greater_than = drel #1643194196000  #
 
-                if 'interval' not in st.session_state:
-                    st.session_state['interval'] = [lower_than,greater_than]
+                st.session_state['interval'] = [lower_than,greater_than]
 
                 st.write('   ')
                 st.write('   ')
@@ -116,6 +111,10 @@ elif st.session_state['pagina'] == 'dins_app':
     elif st.session_state['buscar'] == False:
 
         lower_than,greater_than = st.session_state['interval'] #importo els intervals q havia seleccionat
+        desc_energia_eines = False
+        desc_energia = False
+        desc_eines = False
+        
 
         ############################### CONNECT TO BIGQUERY: Uses st.experimental_singleton to only run once##################################
         # Create API client.
@@ -125,7 +124,7 @@ elif st.session_state['pagina'] == 'dins_app':
         # Perform query.
         # Uses st.experimental_memo to only rerun when the query changes or after 10 min. = 60seg*10 = 600
         @st.experimental_memo(ttl=6)
-        def run_query(query,lower_than,greater_than ):
+        def run_query(query):
             query_job = client.query(query)
             rows_raw = query_job.result()
             rows = [dict(row) for row in rows_raw] # Convert to list of dicts. Required for st.experimental_memo to hash the return value.
@@ -145,7 +144,7 @@ elif st.session_state['pagina'] == 'dins_app':
         """.format(greater_than,lower_than)
 
 
-        df_eines = run_query(query,lower_than,greater_than )
+        df_eines = run_query(query)
         cols = df_eines.columns.tolist()
         cols = cols[-1:] + cols[:-1]
         df_eines = df_eines[cols] 
@@ -157,8 +156,9 @@ elif st.session_state['pagina'] == 'dins_app':
             max_timestamp = int(df_eines['TIMESTAMP'].max())
             min_timestamp = int(df_eines['TIMESTAMP'].min())
 
-            descargable_eines = df_eines.to_csv().encode('utf-8')
-            st.download_button("Descarregar DB EINES",descargable_eines,"resultao.csv","text/csv",key='download-csv')
+            desc_eines = True
+            #descargable_eines = df_eines.to_csv().encode('utf-8')
+            #st.download_button("Descarregar DB EINES",descargable_eines,"resultao.csv","text/csv",key='download-csv-eines')
 
         guardar = False
         if guardar:
@@ -176,15 +176,16 @@ elif st.session_state['pagina'] == 'dins_app':
             ORDER BY TIMESTAMP ASC 
         """.format(greater_than,lower_than,greater_than,lower_than)
 
-        df_energia = run_query(query,lower_than,greater_than )
+        df_energia = run_query(query)
 
 
         st.write('Rows :', df_energia.shape[0])
         st.dataframe(df_energia.head())
 
         if not df_energia.empty:
-            descargable_energies = df_energia.to_csv().encode('utf-8')
-            st.download_button("Descarregar DB ENERGIES",descargable_energies,"resultao.csv","text/csv",key='download-csv')
+            desc_energia = True
+            #descargable_energies = df_energia.to_csv().encode('utf-8')
+            #st.download_button("Descarregar DB ENERGIES",descargable_energies,"resultao.csv","text/csv",key='download-csv-energies')
 
 
         ########################################## ENERGIES pertanyent a EINES ##########################################
@@ -204,15 +205,16 @@ elif st.session_state['pagina'] == 'dins_app':
                     ORDER BY TIMESTAMP ASC 
                 """.format(min_timestamp,max_timestamp,min_timestamp,max_timestamp)
 
-                df_energia_de_eines = run_query(query,lower_than,greater_than )
+                df_energia_de_eines = run_query(query)
 
                 st.write('Rows :', df_energia_de_eines.shape[0])
                 st.dataframe(df_energia_de_eines.head())
 
                 
                 if not df_energia_de_eines.empty:
-                    descargable_energies_eines = df_energia_de_eines.to_csv().encode('utf-8')
-                    st.download_button("Descarregar DB ENERGIES d'eines",descargable_energies_eines,"resultao.csv","text/csv",key='download-csv')
+                    desc_energia_eines = True
+                    #descargable_energies_eines = df_energia_de_eines.to_csv().encode('utf-8')
+                    #st.download_button("Descarregar DB ENERGIES d'eines",descargable_energies_eines,"resultao.csv","text/csv",key='download-csv-energies-i-eines')
                 
             else:
                 st.write("No hi ha dades d'energies")
@@ -224,11 +226,25 @@ elif st.session_state['pagina'] == 'dins_app':
                 st.write("No hi ha dades d'eines")
 
 
-        #st.session_state['descarregables'] = [descargable_eines,descargable_energies,descargable_energies_eines]
-
 
         with st.sidebar:
-            descargable_eines,descargable_energies,descargable_energies_eines = st.session_state['descarregables'] 
-            st.write("Aquí pots descarregar els resultats:")
+
+            st.write("En cas de que hi hagin resultats, aquí els pots descarregar:")
+
+            if desc_eines:
+                descargable_eines = df_eines.to_csv().encode('utf-8')
+                st.download_button("Descarregar DB EINES",descargable_eines,"resultao.csv","text/csv",key='download-csv-eines')
+
+            if desc_energia:
+                descargable_energies = df_energia.to_csv().encode('utf-8')
+                st.download_button("Descarregar DB ENERGIES",descargable_energies,"resultao.csv","text/csv",key='download-csv-energies')
+
+            if desc_energia_eines:
+                descargable_energies_eines = df_energia_de_eines.to_csv().encode('utf-8')
+                st.download_button("Descarregar DB ENERGIES d'eines",descargable_energies_eines,"resultao.csv","text/csv",key='download-csv-energies-i-eines')
+
+
             st.button("NOVA CERCA", on_click=ax_nova_cerca)
+
+
 
